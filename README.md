@@ -1,0 +1,1 @@
+🧹 Cleaner Fighter is a retro-style utility that cleans Windows in 3 quick rounds: Prefetch, Temp, and %Temp% folders. Packed in a standalone .exe with pixel visuals and dramatic flair—no install needed, just unzip and launch!
