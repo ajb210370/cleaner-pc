@@ -1,0 +1,150 @@
+import os
+import sys
+import subprocess
+import tkinter as tk
+from tkinter import messagebox, ttk
+from PIL import Image, ImageTk
+import ctypes
+
+# 🛡️ Verifica se o app está rodando como administrador
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+# 🔑 Se não estiver como admin, relança o app com permissão
+if not is_admin():
+    ctypes.windll.shell32.ShellExecuteW(
+        None, "runas", sys.executable, __file__, None, 1
+    )
+    sys.exit()
+
+# 🎯 Acesso seguro ao fundo.png (compatível com PyInstaller)
+def resource_path(filename):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.abspath("."), filename)
+
+# 🗂️ Pastas a limpar
+folders = {
+    "Prefetch": "C:\\Windows\\Prefetch",
+    "Temp": "C:\\Windows\\Temp",
+    "%Temp%": os.environ.get("TEMP")
+}
+
+def list_files(path):
+    try:
+        return os.listdir(path)
+    except:
+        return ["⚠️ Access issue or folder not found."]
+
+def delete_files(path):
+    try:
+        for f in os.listdir(path):
+            full_path = os.path.join(path, f)
+            try:
+                if os.path.isfile(full_path):
+                    os.remove(full_path)
+                elif os.path.isdir(full_path):
+                    os.rmdir(full_path)
+            except:
+                pass
+        return True
+    except:
+        return False
+
+def center_window(win, width=480, height=340):
+    win.geometry(f"{width}x{height}")
+    win.update_idletasks()
+    x = (win.winfo_screenwidth() // 2) - (width // 2)
+    y = (win.winfo_screenheight() // 2) - (height // 2)
+    win.geometry(f"+{x}+{y}")
+
+def open_modal(folder_name):
+    path = folders[folder_name]
+    files = list_files(path)
+
+    root.withdraw()
+    modal = tk.Toplevel()
+    modal.overrideredirect(True)
+    center_window(modal)
+
+    # 🖼️ Fundo visual
+    bg_modal = Image.open(resource_path("fundo.png")).resize((480, 340))
+    bg_modal_photo = ImageTk.PhotoImage(bg_modal)
+
+    canvas_modal = tk.Canvas(modal, width=480, height=340)
+    canvas_modal.pack(fill="both", expand=True)
+    canvas_modal.create_image(0, 0, image=bg_modal_photo, anchor="nw")
+
+    canvas_modal.create_text(240, 30, text=f"ROUND: {folder_name}", font=("Arial", 16), fill="brown")
+    canvas_modal.create_rectangle(160, 45, 320, 65, fill="#FFFFFF", stipple="gray50", outline="")
+
+    count = len(files) if files and not "⚠️" in files[0] else 0
+    canvas_modal.create_text(240, 55, text=f"{count} files found", font=("Arial", 12), fill="brown")
+
+    # 📝 Lista com aviso especial se bloqueado
+    box = tk.Listbox(modal, width=55, font=("Courier New", 10))
+    if files:
+        for f in files:
+            box.insert(tk.END, f"   {f}")
+        if "⚠️" in files[0]:
+            box.insert(tk.END, "   🚫 Access denied. Run as admin.")
+    else:
+        box.insert(tk.END, "   📂 No files or access denied.")
+    canvas_modal.create_window(240, 160, window=box)
+
+    def finish(clean=False):
+        modal.destroy()
+        if clean:
+            success = delete_files(path)
+            if success:
+                messagebox.showinfo("CLEANER FIGHTER", f"✅ {folder_name} cleaned successfully!")
+            else:
+                messagebox.showwarning("CLEANER FIGHTER", f"⚠️ Could not clean.")
+        root.deiconify()
+
+    btn_clean = ttk.Button(modal, text="💣 DELETE FILES", command=lambda: finish(True))
+    canvas_modal.create_window(240, 270, window=btn_clean)
+
+    btn_cancel = ttk.Button(modal, text="Cancel", command=lambda: finish(False))
+    canvas_modal.create_window(240, 300, window=btn_cancel)
+
+    modal.bg_photo = bg_modal_photo
+
+def exit_app():
+    root.destroy()
+    sys.exit()
+
+def open_task_manager():
+    subprocess.Popen("taskmgr")
+
+# 🌟 Janela principal
+root = tk.Tk()
+root.title("CLEANER FIGHTER — Python Edition")
+root.overrideredirect(True)
+center_window(root)
+
+bg_image = Image.open(resource_path("fundo.png")).resize((480, 340))
+bg_photo = ImageTk.PhotoImage(bg_image)
+
+canvas = tk.Canvas(root, width=480, height=340)
+canvas.pack(fill="both", expand=True)
+canvas.create_image(0, 0, image=bg_photo, anchor="nw")
+canvas.create_text(240, 30, text="🧹 Cleaner Fighter", font=("Arial", 24), fill="brown")
+
+# 🎮 Botões principais
+b1 = ttk.Button(root, text="ROUND: Prefetch", command=lambda: open_modal("Prefetch"))
+canvas.create_window(240, 70, window=b1)
+
+b2 = ttk.Button(root, text="ROUND: Temp", command=lambda: open_modal("Temp"))
+canvas.create_window(240, 100, window=b2)
+
+b3 = ttk.Button(root, text="ROUND: %Temp%", command=lambda: open_modal("%Temp%"))
+canvas.create_window(240, 130, window=b3)
+
+close_btn = ttk.Button(root, text="❌ CLOSE", command=exit_app)
+canvas.create_window(430, 20, window=close_btn)
+
+root.mainloop()
